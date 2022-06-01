@@ -1,0 +1,17 @@
+---
+- name: Ensure compatibility with old groups
+  import_playbook: legacy_groups.yml
+
+- hosts: all
+  roles:
+    - { role: common }
+
+- hosts: masters
+  roles:
+    - { role: master }
+  vars:
+    repo_path: /root/vagrant-ansible-kubernetes
+
+- hosts: workers
+  roles:
+    - { role: worker }

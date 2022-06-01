@@ -1,31 +1,31 @@
 IMAGE_NAME = "bento/ubuntu-20.04"
-N = 2
+$instance_name_prefix ||= "k8s"
+$num_instances ||= 3
+$vm_memory ||= 12288
+$vm_cpus ||= 6
+$Ex_disk_size ||= 50
+$playbook ||= "cluster.yaml"
 
 Vagrant.configure("2") do |config|
-    config.ssh.insert_key = false
-
-    config.vm.provider "virtualbox" do |v|
-        v.memory = 2048
-        v.cpus = 2
-    end
-      
-    config.vm.define "k8s-master" do |master|
-        master.vm.box = IMAGE_NAME
-        master.vm.network "private_network", ip: "192.168.50.10"
-        master.vm.hostname = "k8s-master"
-        master.vm.provision "ansible" do |ansible|
-            ansible.playbook = "kubernetes-setup/master-playbook.yml"
+  (1..$num_instances).each do |i|
+    config.vm.box = IMAGE_NAME
+    config.vm.define vm_name = "%s-%01d" % [$instance_name_prefix, i] do |node|
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = $vm_memory
+        vb.cpus = $vm_cpus
+        file_disk = "/DataStore/Extera_disk_#{i}.vdi"
+        vb.customize ['createhd', '--filename', file_disk, '--size', $Ex_disk_size * 1024]
+        vb.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_disk]
+      end
+      node.vm.network "private_network", ip: "192.168.50.#{i + 10}"
+      node.vm.hostname = "k8s-#{i}"
+      if i == $num_instances
+        node.vm.provision "ansible" do |ansible|
+          ansible.playbook = $playbook
+          ansible.inventory_path = "./hosts.ini"
+          ansible.become = true
         end
+      end
     end
-
-    (1..N).each do |i|
-        config.vm.define "node-#{i}" do |node|
-            node.vm.box = IMAGE_NAME
-            node.vm.network "private_network", ip: "192.168.50.#{i + 10}"
-            node.vm.hostname = "node-#{i}"
-            node.vm.provision "ansible" do |ansible|
-                ansible.playbook = "kubernetes-setup/node-playbook.yml"
-            end
-        end
-    end
+  end
 end

@@ -1,0 +1,1 @@
+kubeadm join vip-k8s-master:8443 --token 4lhkqb.qpvnaqzdfvkgispp --discovery-token-ca-cert-hash sha256:d265fb3e0b757f4758326b38983c658065ccd676fe04727cc650c4242035a4cf 

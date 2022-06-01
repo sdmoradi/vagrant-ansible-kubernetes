@@ -1,0 +1,141 @@
+- name: Install necessary packages
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - software-properties-common 
+    - gnupg2
+    - net-tools
+    - lvm2
+
+- name: Install necessary packages for master
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - haproxy
+    - keepalived
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: copy hosts files
+  command: cp -f /vagrant/hosts /etc/hosts
+
+- name: copy keepalived script
+  command: cp /vagrant/check_apiserver.sh /etc/keepalived/
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: copy keepalived config
+  command: cp -f /vagrant/keepalived.conf /etc/keepalived/
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: edit keepalived config for second master to slave
+  command: sed -i 's/state MASTER/state SLAVE/g' /etc/keepalived/keepalived.conf
+  when:
+    - inventory_hostname in groups['master-2']
+
+- name: edit keepalived config for second master priority
+  command: sed -i 's/priority 255/priority 254/g' /etc/keepalived/keepalived.conf                      
+  when:
+    - inventory_hostname in groups['master-2']
+
+- name: edit keepalived config for third master to slave
+  command: sed -i 's/state MASTER/state SLAVE/g' /etc/keepalived/keepalived.conf
+  when:
+    - inventory_hostname in groups['master-3']
+
+- name: edit keepalived config for third master priority
+  command: sed -i 's/priority 255/priority 253/g' /etc/keepalived/keepalived.conf
+  when:
+    - inventory_hostname in groups['master-3']
+
+- name: copy haproxy config
+  command: cp -f /vagrant/haproxy.cfg /etc/haproxy/
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: restart haproxy and keepalived 
+  shell: systemctl restart keepalived  && systemctl restart haproxy 
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: enable haproxy and keepalived
+  shell: systemctl enable keepalived  && systemctl enable haproxy 
+  when:
+    - inventory_hostname in groups['masters']
+
+- name: Install containerd
+  apt: 
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - containerd
+
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Add an apt signing key for Kubernetes
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Adding apt repository for Kubernetes
+  apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list
+
+- name: Install Kubernetes binaries
+  apt: 
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+      - kubelet=1.23.0-00
+      - kubeadm=1.23.0-00
+      - kubectl=1.23.0-00
+
+- name: Configure containerd
+  blockinfile:
+    create: true
+    path: /etc/modules-load.d/containerd.conf
+    block: |
+      overlay
+      br_netfilter
+- name: Enable kernel modules
+  shell: |
+    modprobe overlay
+    modprobe br_netfilter
+    modprobe rbd
+- name: Configure IP forwarding and iptables
+  blockinfile:
+    create: true
+    path: /etc/sysctl.conf
+    block: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+- name: Persist changes
+  command: sysctl -p
+

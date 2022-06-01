@@ -1,0 +1,104 @@
+- name: Initialize the Kubernetes cluster using kubeadm
+  command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10" --control-plane-endpoint "vip-k8s-master:8443" --pod-network-cidr=172.16.0.0/16 --upload-certs 
+  when:
+    - inventory_hostname in groups['master']
+  register: output
+
+
+- name: copy content={{ output.stdout }} dest=/vagrant/join-master
+  local_action: copy content="{{ output.stdout  }}" dest="/root/vagrant-ansible-kubernetes/join-master"
+  when:
+    - inventory_hostname in groups['master']
+
+- name: remove extera line from kubeadm master join
+  shell: grep -A 4 "You can now join" /vagrant/join-master | sed '1,2d' >/vagrant/join-master.sh
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Create kube directory
+  file:
+    path: /home/vagrant/.kube
+    state: directory
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Setup kubeconfig for vagrant user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/vagrant/.kube/config
+    remote_src: yes
+    owner: vagrant
+    group: vagrant
+    mode: '0644'
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Download calico.conf
+  get_url:
+    url: https://docs.projectcalico.org/v3.20/manifests/calico.yaml
+    dest: /home/vagrant/calico.yaml
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Add pod config to calico.yaml
+  lineinfile:
+    dest: /home/vagrant/calico.yaml
+    regexp: '^\s{12}#\s*- name: CALICO_IPV4POOL_CIDR.*$'
+    line: '            - name: CALICO_IPV4POOL_CIDR'
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Add pod config to calico.yaml
+  lineinfile:
+    dest: /home/vagrant/calico.yaml
+    regexp: '^\s{12}#\s*  value: "192.168.0.0\/16".*$'
+    line: '              value: "172.16.0.0/16"'
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Install calico CNI
+  become: false
+  command: kubectl create -f calico.yaml
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Generate join command
+  command: kubeadm token create --print-join-command
+  register: join_command
+  when:
+    - inventory_hostname in groups['master']
+
+- name: Copy join command to local file
+  become: false
+  local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="/root/vagrant-ansible-kubernetes/join-command"  
+  when:
+    - inventory_hostname in groups['master']
+
+- name: script executable
+  command: chmod 0777 /vagrant/join-master.sh
+  when:
+    - inventory_hostname in groups['o-master']
+
+- name: Initialize the Kubernetes cluster using kubeadm
+  command: sh /vagrant/join-master.sh
+  when:
+    - inventory_hostname in groups['o-master']
+
+- name: Create kube directory
+  file:
+    path: /home/vagrant/.kube
+    state: directory
+  when:
+    - inventory_hostname in groups['o-master']
+
+- name: Setup kubeconfig for vagrant user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/vagrant/.kube/config
+    remote_src: yes
+    owner: vagrant
+    group: vagrant
+    mode: '0644'
+  when:
+    - inventory_hostname in groups['o-master']
+
