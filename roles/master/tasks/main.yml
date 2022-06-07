@@ -16,9 +16,9 @@
     - inventory_hostname in groups['master']
 
 - name: cp join script to tmp
-    shell: cp /vagrant/join-master.sh /tmp/join-master.sh
-    when:
-      - inventory_hostname in groups['o-master']
+  shell: cp /vagrant/join-master.sh /tmp/join-master.sh
+  when:
+    - inventory_hostname in groups['o-master']
 
 - name: Create kube directory
   file:
@@ -85,14 +85,14 @@
     - inventory_hostname in groups['o-master']
 
 - name: Edit join script for master-2
-    command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.12"/g' /tmp/join-master.sh
-    when:
-      - inventory_hostname in groups['master-2']
+  command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.12"/g' /tmp/join-master.sh
+  when:
+    - inventory_hostname in groups['master-2']
 
 - name: Edit join script for master-3
-      command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.13"/g' /tmp/join-master.sh
-      when:
-        - inventory_hostname in groups['master-3']
+  command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.13"/g' /tmp/join-master.sh
+  when:
+    - inventory_hostname in groups['master-3']
 
 - name: Initialize the Kubernetes cluster using kubeadm
   command: sh /tmp/join-master.sh
