@@ -1,8 +1,4 @@
-- name: Copy the join command to server location
-  command: cp /vagrant/join-command /vagrant/join-command.sh
-
-- name: script executable
-  command: chmod 0777 /vagrant/join-command.sh
-
-- name: Join the node to cluster
-  command: sh /vagrant/join-command.sh
+- name: join all master as workers
+  command: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+  when:
+    - inventory_hostname in groups['master']
