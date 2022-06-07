@@ -1,4 +1,4 @@
 - name: join all master as workers
-  command: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+  command: kubectl taint nodes --all node-role.kubernetes.io/master-
   when:
     - inventory_hostname in groups['master']
