@@ -1,7 +1,6 @@
 #!/bin/sh
 APISERVER_VIP=192.168.50.10
 APISERVER_DEST_PORT=6443
-VIP_APISERVER_DEST_PORT=8443
 
 errorExit() {
     echo "*** $*" 1>&2
@@ -11,5 +10,5 @@ errorExit() {
 curl --silent --max-time 2 --insecure https://localhost:${APISERVER_DEST_PORT}/ -o /dev/null || errorExit "Error GET https://localhost:${APISERVER_DEST_PORT}/"
 
 if ip addr | grep -q ${APISERVER_VIP}; then
-    curl --silent --max-time 2 --insecure https://${APISERVER_VIP}:${VIP_APISERVER_DEST_PORT}/ -o /dev/null || errorExit "Error GET https://${APISERVER_VIP}:${VIP_APISERVER_DEST_PORT}/"
+    curl --silent --max-time 2 --insecure https://${APISERVER_VIP}:${APISERVER_DEST_PORT}/ -o /dev/null || errorExit "Error GET https://${APISERVER_VIP}:${APISERVER_DEST_PORT}/"
 fi
