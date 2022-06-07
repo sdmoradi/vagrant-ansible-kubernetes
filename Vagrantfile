@@ -4,7 +4,6 @@ $num_instances ||= 3
 $vm_memory ||= 12288
 $vm_cpus ||= 6
 $Ex_disk_size ||= 50
-$playbook ||= "cluster.yaml"
 
 Vagrant.configure("2") do |config|
   (1..$num_instances).each do |i|
@@ -21,8 +20,8 @@ Vagrant.configure("2") do |config|
       node.vm.hostname = "k8s-#{i}"
       if i == $num_instances
         node.vm.provision "ansible" do |ansible|
-          ansible.playbook = $playbook
-          ansible.inventory_path = "./hosts.ini"
+          ansible.playbook = "cluster.yaml"
+          ansible.inventory_path = "hosts.ini"
           ansible.become = true
         end
       end
