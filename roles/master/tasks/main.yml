@@ -1,5 +1,5 @@
 - name: Initialize the Kubernetes cluster using kubeadm
-  command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10" --control-plane-endpoint "vip-k8s-master:8443" --pod-network-cidr=172.16.0.0/16 --upload-certs 
+  command: kubeadm init --apiserver-advertise-address "192.168.50.11" --apiserver-cert-extra-sans "192.168.50.10" --control-plane-endpoint "192.168.50.10:8443" --pod-network-cidr=172.16.0.0/16 --upload-certs 
   when:
     - inventory_hostname in groups['master']
   register: output
@@ -14,6 +14,11 @@
   shell: grep -A 4 "You can now join" /vagrant/join-master | sed '1,2d' >/vagrant/join-master.sh
   when:
     - inventory_hostname in groups['master']
+
+- name: cp join script to tmp
+    shell: cp /vagrant/join-master.sh /tmp/join-master.sh
+    when:
+      - inventory_hostname in groups['o-master']
 
 - name: Create kube directory
   file:
@@ -75,12 +80,22 @@
     - inventory_hostname in groups['master']
 
 - name: script executable
-  command: chmod 0777 /vagrant/join-master.sh
+  command: chmod 0777 /tmp/join-master.sh
   when:
     - inventory_hostname in groups['o-master']
 
+- name: Edit join script for master-2
+    command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.12"/g' /tmp/join-master.sh
+    when:
+      - inventory_hostname in groups['master-2']
+
+- name: Edit join script for master-3
+      command: sed -i 's/8443/8443 --apiserver-advertise-address "192.168.50.13"/g' /tmp/join-master.sh
+      when:
+        - inventory_hostname in groups['master-3']
+
 - name: Initialize the Kubernetes cluster using kubeadm
-  command: sh /vagrant/join-master.sh
+  command: sh /tmp/join-master.sh
   when:
     - inventory_hostname in groups['o-master']
 
